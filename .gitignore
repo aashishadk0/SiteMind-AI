@@ -1,0 +1,42 @@
+# Virtual Environment
+env/
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environment Variables
+.env
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# Testing
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Migrations cache
+*.pyc
+
+# Windows
+Thumbs.db
+
+# Uploaded files 
+uploads/
+
+# ChromaDB 
+chroma_db/

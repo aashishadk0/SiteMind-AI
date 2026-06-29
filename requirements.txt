@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+requests
+beautifulsoup4
+python-dotenv
+bcrypt
+chromadb
+numpy
+google-genai
+groq
+ollama
+pydantic
+jinja2
+aiofiles
+python-multipart

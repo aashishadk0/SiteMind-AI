@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SiteMind AI</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+
+  <body class="bg-[#202123] text-white font-[Inter]">
+    <div class="flex h-screen">
+      <aside class="w-72 bg-[#171717] border-r border-[#2f2f2f] flex flex-col">
+        <div class="p-4">
+          <button
+            id="newChatBtn"
+            class="w-full rounded-lg bg-green-600 hover:bg-green-700 transition py-3 font-semibold"
+          >
+            + New Chat
+          </button>
+        </div>
+
+        <div id="chatList" class="flex-1 overflow-y-auto px-2"></div>
+
+        <div class="border-t border-[#2f2f2f] p-4">
+          <button
+            id="logoutBtn"
+            class="hidden w-full text-left text-sm text-gray-300 hover:text-white"
+          >
+            Logout
+          </button>
+          <div id="userInfo" class="text-sm text-gray-400">Not logged in</div>
+        </div>
+      </aside>
+
+      <main class="flex-1 flex flex-col">
+        <header
+          class="h-16 border-b border-[#2f2f2f] flex items-center justify-between px-6"
+        >
+          <h1 class="font-semibold text-lg">SiteMind AI</h1>
+
+          <div class="flex items-center gap-3">
+            <select
+              id="providerSelect"
+              class="bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm outline-none"
+            >
+              <option value="ollama">Ollama</option>
+              <option value="groq">Groq</option>
+            </select>
+
+            <select
+              id="modelSelect"
+              class="bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm outline-none"
+            ></select>
+
+            <button
+              id="openAuthBtn"
+              class="rounded-lg bg-green-600 hover:bg-green-700 px-4 py-2 text-sm font-semibold"
+            >
+              Login
+            </button>
+          </div>
+        </header>
+
+        <section id="chatContainer" class="flex-1 overflow-y-auto">
+          <div
+            id="welcomeScreen"
+            class="h-full flex flex-col justify-center items-center"
+          >
+            <h2 class="text-5xl font-bold">SiteMind AI</h2>
+            <p class="text-gray-400 mt-3">
+              Ask anything about the indexed knowledge base.
+            </p>
+          </div>
+
+          <div id="messages" class="hidden max-w-4xl mx-auto px-6 py-8"></div>
+        </section>
+
+        <footer class="p-6">
+          <div class="max-w-4xl mx-auto">
+            <div class="flex bg-[#2b2b2b] rounded-xl border border-[#3a3a3a]">
+              <textarea
+                id="messageInput"
+                rows="1"
+                placeholder="Message SiteMind AI..."
+                class="flex-1 resize-none bg-transparent outline-none px-5 py-4"
+              ></textarea>
+
+              <button
+                id="sendBtn"
+                class="px-6 text-green-500 hover:text-green-400 transition"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </footer>
+      </main>
+    </div>
+
+    <!-- Auth Modal -->
+    <div
+      id="authModal"
+      class="fixed inset-0 hidden items-center justify-center bg-black/70 z-50"
+    >
+      <div
+        class="w-full max-w-md rounded-2xl bg-[#171717] border border-[#333] p-6 shadow-2xl"
+      >
+        <div class="flex justify-between items-center mb-5">
+          <h2 id="authTitle" class="text-2xl font-bold">Login</h2>
+          <button
+            id="closeAuthBtn"
+            class="text-gray-400 hover:text-white text-xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          id="authError"
+          class="hidden mb-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 text-sm"
+        ></div>
+
+        <input
+          id="usernameInput"
+          class="hidden w-full mb-3 rounded-lg bg-[#242424] border border-[#3a3a3a] px-4 py-3 outline-none"
+          placeholder="Username"
+        />
+
+        <input
+          id="emailInput"
+          class="w-full mb-3 rounded-lg bg-[#242424] border border-[#3a3a3a] px-4 py-3 outline-none"
+          placeholder="Email"
+        />
+
+        <input
+          id="passwordInput"
+          type="password"
+          class="w-full mb-4 rounded-lg bg-[#242424] border border-[#3a3a3a] px-4 py-3 outline-none"
+          placeholder="Password"
+        />
+
+        <button
+          id="authSubmitBtn"
+          class="w-full rounded-lg bg-green-600 hover:bg-green-700 py-3 font-semibold"
+        >
+          Login
+        </button>
+
+        <p class="text-center text-sm text-gray-400 mt-4">
+          <span id="authSwitchText">Don't have an account?</span>
+          <button
+            id="switchAuthBtn"
+            class="text-green-400 hover:text-green-300 font-medium"
+          >
+            Register
+          </button>
+        </p>
+      </div>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

@@ -40,3 +40,6 @@ uploads/
 
 # ChromaDB 
 chroma_db/
+
+#Data
+data/

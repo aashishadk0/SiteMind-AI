@@ -1,5 +1,4 @@
 let currentChatId = null;
-
 let selectedProvider = "ollama";
 let selectedModel = "llama3.2:latest";
 
@@ -7,6 +6,8 @@ const chatList = document.getElementById("chatList");
 const messagesBox = document.getElementById("messages");
 const welcomeScreen = document.getElementById("welcomeScreen");
 const newChatBtn = document.getElementById("newChatBtn");
+const sidebar = document.getElementById("sidebar");
+const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
 
 function showMessagesArea() {
     welcomeScreen.classList.add("hidden");
@@ -18,55 +19,55 @@ function showWelcomeArea() {
     messagesBox.classList.add("hidden");
 }
 
-function renderMessage(role, content) {
+function createBubble(role, content = "") {
     showMessagesArea();
 
     const wrapper = document.createElement("div");
+    const bubble = document.createElement("div");
 
     if (role === "user") {
-        wrapper.className = "flex justify-end mb-5";
-        wrapper.innerHTML = `
-            <div class="max-w-[75%] rounded-2xl rounded-br-md bg-green-600 px-5 py-3 text-white leading-relaxed">
-                ${escapeHtml(content)}
-            </div>
-        `;
+        wrapper.className = "flex justify-end mb-4";
+        bubble.className = "max-w-[85%] md:max-w-[75%] rounded-2xl rounded-br-md bg-green-600 px-5 py-3 text-white leading-normal";
     } else {
-        wrapper.className = "flex justify-start mb-5";
-        wrapper.innerHTML = `
-            <div class="max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-100 leading-relaxed whitespace-pre-wrap">
-                ${escapeHtml(content)}
-            </div>
-        `;
+        wrapper.className = "flex justify-start mb-4";
+        bubble.className = "max-w-[90%] md:max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-100 leading-normal whitespace-pre-line";
     }
 
+    bubble.textContent = content.trim();
+    wrapper.appendChild(bubble);
     messagesBox.appendChild(wrapper);
+
     scrollToBottom();
+    return bubble;
 }
 
-function renderLoadingMessage() {
+function createWaitingBubble() {
     showMessagesArea();
 
     const wrapper = document.createElement("div");
-    wrapper.id = "loadingMessage";
-    wrapper.className = "flex justify-start mb-5";
-    wrapper.innerHTML = `
-        <div class="max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-300">
-            Generating reply...
+    const bubble = document.createElement("div");
+
+    wrapper.className = "flex justify-start mb-4";
+    bubble.className = "max-w-[90%] md:max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-300 leading-normal";
+
+    bubble.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span>Searching knowledge base and preparing answer</span>
+            <span class="waiting-dots">
+                <span>.</span><span>.</span><span>.</span>
+            </span>
         </div>
     `;
 
+    wrapper.appendChild(bubble);
     messagesBox.appendChild(wrapper);
+
     scrollToBottom();
+    return bubble;
 }
 
-function replaceLoadingMessage(content) {
-    const loading = document.getElementById("loadingMessage");
-
-    if (loading) {
-        loading.remove();
-    }
-
-    renderMessage("assistant", content);
+function renderMessage(role, content) {
+    createBubble(role, content);
 }
 
 function clearMessages() {
@@ -78,10 +79,39 @@ function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-function escapeHtml(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
+async function loadModelOptions() {
+    const providerSelect = document.getElementById("providerSelect");
+    const modelSelect = document.getElementById("modelSelect");
+
+    const models = await apiRequest("/ai/models");
+
+    function renderModels(provider) {
+        modelSelect.innerHTML = "";
+
+        const providerData = models[provider];
+
+        selectedProvider = provider;
+        selectedModel = providerData.default;
+
+        providerData.models.forEach(model => {
+            const option = document.createElement("option");
+            option.value = model.id;
+            option.textContent = model.name;
+            modelSelect.appendChild(option);
+        });
+
+        modelSelect.value = selectedModel;
+    }
+
+    providerSelect.addEventListener("change", () => {
+        renderModels(providerSelect.value);
+    });
+
+    modelSelect.addEventListener("change", () => {
+        selectedModel = modelSelect.value;
+    });
+
+    renderModels(providerSelect.value);
 }
 
 async function createNewChat() {
@@ -103,6 +133,33 @@ async function createNewChat() {
     showWelcomeArea();
 
     await loadChats();
+    closeMobileSidebar();
+}
+
+async function deleteChat(chatId) {
+    const confirmed = confirm("Delete this chat?");
+
+    if (!confirmed) return;
+
+    await apiRequest(`/chat/delete/${chatId}`, "DELETE");
+
+    if (Number(currentChatId) === Number(chatId)) {
+        localStorage.removeItem("sitemind_current_chat");
+        currentChatId = null;
+        clearMessages();
+        showWelcomeArea();
+    }
+
+    await loadChats();
+
+    const user = getUser();
+    const chats = user ? await apiRequest(`/chat/list/${user.id}`) : [];
+
+    if (!currentChatId && chats.length > 0) {
+        currentChatId = chats[0].id;
+        localStorage.setItem("sitemind_current_chat", currentChatId);
+        await loadChatHistory(currentChatId);
+    }
 }
 
 async function loadChats() {
@@ -118,24 +175,39 @@ async function loadChats() {
     chatList.innerHTML = "";
 
     chats.forEach(chat => {
-        const button = document.createElement("button");
+        const row = document.createElement("div");
 
-        button.className = `
-            w-full text-left px-3 py-3 rounded-lg text-sm mb-1
-            hover:bg-[#2b2b2b] transition truncate
+        row.className = `
+            group flex items-center gap-2 rounded-lg mb-1 px-2
+            hover:bg-[#2b2b2b] transition
             ${Number(currentChatId) === Number(chat.id) ? "bg-[#2b2b2b]" : ""}
         `;
 
+        const button = document.createElement("button");
+        button.className = "flex-1 text-left py-3 text-sm truncate";
         button.textContent = chat.title || "New Chat";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "opacity-70 md:opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition px-2";
+        deleteBtn.innerHTML = "🗑";
 
         button.addEventListener("click", async () => {
             currentChatId = chat.id;
             localStorage.setItem("sitemind_current_chat", currentChatId);
+
             await loadChatHistory(chat.id);
             await loadChats();
+            closeMobileSidebar();
         });
 
-        chatList.appendChild(button);
+        deleteBtn.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            await deleteChat(chat.id);
+        });
+
+        row.appendChild(button);
+        row.appendChild(deleteBtn);
+        chatList.appendChild(row);
     });
 }
 
@@ -173,40 +245,6 @@ async function ensureActiveChat() {
     await createNewChat();
 }
 
-async function loadModelOptions() {
-    const providerSelect = document.getElementById("providerSelect");
-    const modelSelect = document.getElementById("modelSelect");
-
-    const models = await apiRequest("/ai/models");
-
-    function renderModels(provider) {
-        modelSelect.innerHTML = "";
-
-        const providerData = models[provider];
-        selectedProvider = provider;
-        selectedModel = providerData.default;
-
-        providerData.models.forEach(model => {
-            const option = document.createElement("option");
-            option.value = model.id;
-            option.textContent = model.name;
-            modelSelect.appendChild(option);
-        });
-
-        modelSelect.value = selectedModel;
-    }
-
-    providerSelect.addEventListener("change", () => {
-        renderModels(providerSelect.value);
-    });
-
-    modelSelect.addEventListener("change", () => {
-        selectedModel = modelSelect.value;
-    });
-
-    renderModels(providerSelect.value);
-}
-
 async function sendMessage() {
     const user = getUser();
 
@@ -227,25 +265,93 @@ async function sendMessage() {
     input.value = "";
 
     renderMessage("user", question);
-    renderLoadingMessage();
+
+    const assistantBubble = createWaitingBubble();
 
     try {
-        const response = await apiRequest("/chat/", "POST", {
-            chat_id: Number(currentChatId),
-            question: question,
-            // provider: "ollama",
-            // // model: "llama3.1:8b"
-            // model: "mistral:latest"
-            provider: selectedProvider,
-            model: selectedModel
+        const response = await fetch("/chat/stream", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                chat_id: Number(currentChatId),
+                question: question,
+                provider: selectedProvider,
+                model: selectedModel
+            })
         });
 
-        replaceLoadingMessage(response.answer);
+        if (!response.ok) {
+            throw new Error("Failed to generate response.");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        let fullText = "";
+        let firstTokenReceived = false;
+
+        while (true) {
+            const { value, done } = await reader.read();
+
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            fullText += chunk;
+
+            if (!firstTokenReceived) {
+                assistantBubble.textContent = "";
+                firstTokenReceived = true;
+            }
+
+            assistantBubble.textContent = fullText.trimStart();
+            scrollToBottom();
+        }
+
+        assistantBubble.textContent = fullText.trim();
         await loadChats();
 
     } catch (error) {
-        replaceLoadingMessage(`Error: ${error.message}`);
+        assistantBubble.textContent = `Error: ${error.message}`;
     }
 }
+
+function openMobileSidebar() {
+    sidebar.classList.add("open");
+    document.body.classList.add("sidebar-open");
+    sidebarToggleBtn.textContent = "×";
+}
+
+function closeMobileSidebar() {
+    sidebar.classList.remove("open");
+    document.body.classList.remove("sidebar-open");
+    sidebarToggleBtn.textContent = "☰";
+}
+
+function toggleMobileSidebar() {
+    if (sidebar.classList.contains("open")) {
+        closeMobileSidebar();
+    } else {
+        openMobileSidebar();
+    }
+}
+
+sidebarToggleBtn.addEventListener("click", toggleMobileSidebar);
+
+document.addEventListener("click", (event) => {
+    const isMobile = window.innerWidth <= 768;
+    const clickedSidebar = sidebar.contains(event.target);
+    const clickedToggle = sidebarToggleBtn.contains(event.target);
+
+    if (
+        isMobile &&
+        sidebar.classList.contains("open") &&
+        !clickedSidebar &&
+        !clickedToggle
+    ) {
+        closeMobileSidebar();
+    }
+});
 
 newChatBtn.addEventListener("click", createNewChat);

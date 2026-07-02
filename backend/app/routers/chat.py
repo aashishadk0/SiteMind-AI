@@ -13,6 +13,10 @@ from backend.app.schemas.chat_management import (
 from backend.app.services.chat_service import ChatService
 from backend.app.services.chat_management_service import ChatManagementService
 
+
+from fastapi.responses import StreamingResponse
+
+
 router = APIRouter(
     prefix="/chat",
     tags=["Chat"],
@@ -52,6 +56,26 @@ def chat(request: ChatRequest):
             detail=str(e)
         )
 
+@router.post("/stream")
+def chat_stream(request: ChatRequest):
+
+    def stream_generator():
+        try:
+            for token in chat_service.generate_reply_stream(
+                chat_id=request.chat_id,
+                question=request.question,
+                provider=request.provider,
+                model=request.model,
+            ):
+                yield token
+
+        except Exception as e:
+            yield f"Error: {str(e)}"
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/plain",
+    )
 
 # ---------------- CREATE ---------------- #
 

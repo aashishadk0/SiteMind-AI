@@ -18,8 +18,11 @@
   </head>
 
   <body class="bg-[#202123] text-white font-[Inter]">
-    <div class="flex h-screen">
-      <aside class="w-72 bg-[#171717] border-r border-[#2f2f2f] flex flex-col">
+    <div class="flex h-screen overflow-hidden">
+      <aside
+        id="sidebar"
+        class="sidebar bg-[#171717] border-r border-[#2f2f2f] flex flex-col"
+      >
         <div class="p-4">
           <button
             id="newChatBtn"
@@ -42,16 +45,24 @@
         </div>
       </aside>
 
-      <main class="flex-1 flex flex-col">
+      <main class="flex-1 flex flex-col min-w-0">
         <header
-          class="h-16 border-b border-[#2f2f2f] flex items-center justify-between px-6"
+          class="h-16 border-b border-[#2f2f2f] flex items-center justify-between px-4 md:px-6"
         >
-          <h1 class="font-semibold text-lg">SiteMind AI</h1>
-
           <div class="flex items-center gap-3">
+            <button
+              id="sidebarToggleBtn"
+              class="md:hidden rounded-lg bg-[#2b2b2b] px-3 py-2 text-lg leading-none"
+            >
+              ☰
+            </button>
+            <h1 class="font-semibold text-lg">SiteMind AI</h1>
+          </div>
+
+          <div class="flex items-center gap-2 md:gap-3">
             <select
               id="providerSelect"
-              class="bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm outline-none"
+              class="bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm outline-none"
             >
               <option value="ollama">Ollama</option>
               <option value="groq">Groq</option>
@@ -59,12 +70,12 @@
 
             <select
               id="modelSelect"
-              class="bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm outline-none"
+              class="max-w-[120px] md:max-w-none bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm outline-none"
             ></select>
 
             <button
               id="openAuthBtn"
-              class="rounded-lg bg-green-600 hover:bg-green-700 px-4 py-2 text-sm font-semibold"
+              class="rounded-lg bg-green-600 hover:bg-green-700 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold"
             >
               Login
             </button>
@@ -74,30 +85,33 @@
         <section id="chatContainer" class="flex-1 overflow-y-auto">
           <div
             id="welcomeScreen"
-            class="h-full flex flex-col justify-center items-center"
+            class="h-full flex flex-col justify-center items-center text-center px-4"
           >
-            <h2 class="text-5xl font-bold">SiteMind AI</h2>
-            <p class="text-gray-400 mt-3">
+            <h2 class="text-4xl md:text-5xl font-bold">SiteMind AI</h2>
+            <p class="text-gray-400 mt-3 text-sm md:text-base">
               Ask anything about the indexed knowledge base.
             </p>
           </div>
 
-          <div id="messages" class="hidden max-w-4xl mx-auto px-6 py-8"></div>
+          <div
+            id="messages"
+            class="hidden max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-8"
+          ></div>
         </section>
 
-        <footer class="p-6">
+        <footer class="p-3 md:p-6">
           <div class="max-w-4xl mx-auto">
             <div class="flex bg-[#2b2b2b] rounded-xl border border-[#3a3a3a]">
               <textarea
                 id="messageInput"
                 rows="1"
                 placeholder="Message SiteMind AI..."
-                class="flex-1 resize-none bg-transparent outline-none px-5 py-4"
+                class="flex-1 resize-none bg-transparent outline-none px-4 md:px-5 py-4 text-sm md:text-base"
               ></textarea>
 
               <button
                 id="sendBtn"
-                class="px-6 text-green-500 hover:text-green-400 transition"
+                class="px-4 md:px-6 text-green-500 hover:text-green-400 transition"
               >
                 Send
               </button>
@@ -107,10 +121,9 @@
       </main>
     </div>
 
-    <!-- Auth Modal -->
     <div
       id="authModal"
-      class="fixed inset-0 hidden items-center justify-center bg-black/70 z-50"
+      class="fixed inset-0 hidden items-center justify-center bg-black/70 z-50 px-4"
     >
       <div
         class="w-full max-w-md rounded-2xl bg-[#171717] border border-[#333] p-6 shadow-2xl"
@@ -135,13 +148,11 @@
           class="hidden w-full mb-3 rounded-lg bg-[#242424] border border-[#3a3a3a] px-4 py-3 outline-none"
           placeholder="Username"
         />
-
         <input
           id="emailInput"
           class="w-full mb-3 rounded-lg bg-[#242424] border border-[#3a3a3a] px-4 py-3 outline-none"
           placeholder="Email"
         />
-
         <input
           id="passwordInput"
           type="password"

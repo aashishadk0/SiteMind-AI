@@ -1,144 +1,76 @@
-"""
-LLM Service
-
-Supports:
-- Ollama
-- Groq
-
-Future:
-- Gemini
-"""
-
 from groq import Groq
 from ollama import Client
 
-from backend.app.config import (
-    GROQ_API_KEY,
-    OLLAMA_URL,
-)
+from backend.app.config import GROQ_API_KEY, OLLAMA_URL
 
 
 class LLMService:
-
-    def __init__(
-        self,
-        provider: str,
-        model: str,
-    ):
-
+    def __init__(self, provider: str, model: str):
         self.provider = provider.lower()
-
         self.model = model
 
         if self.provider == "ollama":
-
-            self.client = Client(
-                host=OLLAMA_URL
-            )
+            self.client = Client(host=OLLAMA_URL)
 
         elif self.provider == "groq":
-
-            self.client = Groq(
-                api_key=GROQ_API_KEY
-            )
+            self.client = Groq(api_key=GROQ_API_KEY)
 
         else:
+            raise ValueError(f"Unsupported provider: {provider}")
 
-            raise ValueError(
-                f"Unsupported provider: {provider}"
-            )
-
-    def chat(
-        self,
-        messages: list,
-        temperature: float = 0.2,
-        stream = False
-    ):
-
+    def chat(self, messages: list, temperature: float = 0.2):
         if self.provider == "ollama":
-
-            return self._chat_ollama(
-                messages,
-                temperature,
-                stream
+            response = self.client.chat(
+                model=self.model,
+                messages=messages,
+                stream=False,
+                options={
+                    "temperature": temperature,
+                    "num_predict": 220,
+                    "num_ctx": 2048,
+                },
             )
 
-        elif self.provider == "groq":
+            return response["message"]["content"].strip()
 
-            return self._chat_groq(
-                messages,
-                temperature,
-                stream
-            )
-
-    def _chat_ollama(
-    self,
-    messages,
-    temperature,
-    stream=False
-):
-
-        response = self.client.chat(
-
+        response = self.client.chat.completions.create(
             model=self.model,
-
             messages=messages,
-
-            stream=stream,
-
-            options={
-
-                "temperature": temperature,
-
-                "num_predict": 180
-
-            }
-
+            temperature=temperature,
+            stream=False,
         )
 
-        if stream:
+        return response.choices[0].message.content.strip()
 
-            for chunk in response:
+    def stream_chat(self, messages: list, temperature: float = 0.2):
+        if self.provider == "ollama":
+            stream = self.client.chat(
+                model=self.model,
+                messages=messages,
+                stream=True,
+                options={
+                    "temperature": temperature,
+                    "num_predict": 220,
+                    "num_ctx": 2048,
+                },
+            )
 
+            for chunk in stream:
                 content = chunk["message"]["content"]
 
                 if content:
-
                     yield content
 
-        else:
+        elif self.provider == "groq":
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                stream=True,
+            )
 
-            return response["message"]["content"]    
+            for chunk in stream:
+                content = chunk.choices[0].delta.content
 
-    def _chat_groq(
-    self,
-    messages,
-    temperature,
-    stream=False
-):
-
-        response = self.client.chat.completions.create(
-
-            model=self.model,
-
-            messages=messages,
-
-            temperature=temperature,
-
-            stream=stream,
-
-        )
-
-        if stream:
-
-            for chunk in response:
-
-                delta = chunk.choices[0].delta.content
-
-                if delta:
-
-                    yield delta
-
-        else:
-
-            return response.choices[0].message.content
+                if content:
+                    yield content

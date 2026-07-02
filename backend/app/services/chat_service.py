@@ -1,115 +1,97 @@
-"""
-Main RAG chat service.
-"""
-
-from backend.app.database.chat_repository import ChatRepository
 from backend.app.rag.retriever import Retriever
 from backend.app.rag.prompt_builder import PromptBuilder
 from backend.app.services.llm_service import LLMService
 from backend.app.core.model_manager import ModelManager
+from backend.app.database.chat_repository import ChatRepository
 from backend.app.services.router_service import RouterService
 
+
 class ChatService:
-
     def __init__(self):
-
         self.retriever = Retriever()
-
+        self.prompt_builder = PromptBuilder()
         self.repository = ChatRepository()
 
-        self.prompt_builder = PromptBuilder()
+    def make_title(self, question: str):
+        title = question.strip().replace("\n", " ")
 
-    def generate_reply(
+        if len(title) > 42:
+            title = title[:42] + "..."
 
-        self,
+        return title or "New Chat"
 
-        chat_id,
+    def generate_reply(self, chat_id, question, provider, model):
+        full_answer = ""
 
-        question,
-
-        provider,
-
-        model,
-
-    ):
-
-        if not ModelManager.is_valid(
-            provider,
-            model
-        ):
-            raise ValueError("Invalid model.")
-
-        # Save user message
-        self.repository.save_message(
-
+        for token in self.generate_reply_stream(
             chat_id,
+            question,
+            provider,
+            model,
+        ):
+            full_answer += token
 
+        return {
+            "answer": full_answer.strip(),
+            "sources": [],
+        }
+
+    def generate_reply_stream(self, chat_id, question, provider, model):
+        if not ModelManager.is_valid(provider, model):
+            raise ValueError("Invalid model selected.")
+
+        previous_messages = self.repository.get_messages(chat_id)
+
+        if len(previous_messages) == 0:
+            self.repository.update_title(
+                chat_id,
+                self.make_title(question),
+            )
+
+        self.repository.save_message(
+            chat_id,
             "user",
-
-            question
-
+            question,
         )
 
-        # Load conversation history
-        history = self.repository.get_messages(
-            chat_id
-        )
+        route = RouterService.process(question)
 
-        # Retrieve relevant chunks
+        if route["handled"]:
+            answer = route["answer"]
+
+            self.repository.save_message(
+                chat_id,
+                "assistant",
+                answer,
+            )
+
+            yield answer
+            return
+
         chunks = self.retriever.retrieve(
-
             question,
-
-            top_k=3
-
+            top_k=3,
         )
 
-        # Build prompt
         messages = self.prompt_builder.build(
-
             question,
-
             chunks,
-
-            history
-
+            previous_messages[-8:],
         )
 
         llm = LLMService(
-
-            provider,
-
-            model
-
+            provider=provider,
+            model=model,
         )
 
-        answer = ""
+        full_answer = ""
 
-        for piece in llm.chat(
+        for token in llm.stream_chat(messages):
+            full_answer += token
+            yield token
 
-            messages,
-
-            stream=True
-
-        ):
-
-                answer += piece
-
-        # Save assistant reply
         self.repository.save_message(
-
             chat_id,
-
             "assistant",
-
-            answer
-
+            full_answer.strip(),
         )
-
-        return {
-
-            "answer": answer,
-
-            "sources": chunks
-
-        }

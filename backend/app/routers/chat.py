@@ -56,25 +56,34 @@ def chat(request: ChatRequest):
             detail=str(e)
         )
 
+from fastapi.responses import StreamingResponse
+
+
 @router.post("/stream")
 def chat_stream(request: ChatRequest):
 
     def stream_generator():
         try:
+            yield "data: Searching knowledge base...\n\n"
+
             for token in chat_service.generate_reply_stream(
                 chat_id=request.chat_id,
                 question=request.question,
                 provider=request.provider,
                 model=request.model,
             ):
-                yield token
+                safe_token = token.replace("\n", "\\n")
+                yield f"data: {safe_token}\n\n"
+
+            yield "data: [DONE]\n\n"
 
         except Exception as e:
-            yield f"Error: {str(e)}"
+            yield f"data: Error: {str(e)}\n\n"
+            yield "data: [DONE]\n\n"
 
     return StreamingResponse(
         stream_generator(),
-        media_type="text/plain",
+        media_type="text/event-stream",
     )
 
 # ---------------- CREATE ---------------- #

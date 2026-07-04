@@ -30,7 +30,8 @@ function createBubble(role, content = "") {
         bubble.className = "max-w-[85%] md:max-w-[75%] rounded-2xl rounded-br-md bg-green-600 px-5 py-3 text-white leading-normal";
     } else {
         wrapper.className = "flex justify-start mb-4";
-        bubble.className = "max-w-[90%] md:max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-100 leading-normal whitespace-pre-line";
+        bubble.className =
+            "markdown-body max-w-[90%] md:max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-100 leading-relaxed";
     }
 
     bubble.textContent = content.trim();
@@ -67,7 +68,14 @@ function createWaitingBubble() {
 }
 
 function renderMessage(role, content) {
-    createBubble(role, content);
+    const bubble = createBubble(role, "");
+
+    if (role === "assistant") {
+        bubble.classList.add("markdown-body");
+        bubble.innerHTML = marked.parse(content.trim());
+    } else {
+        bubble.textContent = content.trim();
+    }
 }
 
 function clearMessages() {
@@ -84,6 +92,7 @@ async function loadModelOptions() {
     const modelSelect = document.getElementById("modelSelect");
 
     const models = await apiRequest("/ai/models");
+    providerSelect.value = "groq";
 
     function renderModels(provider) {
         modelSelect.innerHTML = "";
@@ -290,28 +299,47 @@ async function sendMessage() {
         const decoder = new TextDecoder();
 
         let fullText = "";
-        let firstTokenReceived = false;
+        let firstAnswerToken = false;
 
         while (true) {
             const { value, done } = await reader.read();
 
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            fullText += chunk;
+            const rawChunk = decoder.decode(value);
+            const lines = rawChunk.split("\n\n");
 
-            if (!firstTokenReceived) {
-                assistantBubble.textContent = "";
-                firstTokenReceived = true;
+            for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+
+                let token = line.replace("data: ", "");
+
+                if (token === "[DONE]") break;
+
+                token = token.replaceAll("\\n", "\n");
+
+                if (token.includes("Searching knowledge base")) {
+                    assistantBubble.textContent = token;
+                    continue;
+                }
+
+                if (!firstAnswerToken) {
+                    assistantBubble.textContent = "";
+                    firstAnswerToken = true;
+                }
+
+                fullText += token;
+                assistantBubble.innerHTML = marked.parse(fullText.trimStart());
+                scrollToBottom();
             }
-
-            assistantBubble.textContent = fullText.trimStart();
-            scrollToBottom();
         }
 
-        assistantBubble.textContent = fullText.trim();
-        await loadChats();
+        const finalText = fullText.trim();
 
+        assistantBubble.classList.add("markdown-body");
+        assistantBubble.innerHTML = marked.parse(finalText);
+
+        await loadChats();
     } catch (error) {
         assistantBubble.textContent = `Error: ${error.message}`;
     }

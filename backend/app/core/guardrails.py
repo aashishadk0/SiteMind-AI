@@ -1,90 +1,64 @@
-"""
-Basic guardrails and query routing.
-"""
-
 import re
 
 
 class Guardrails:
-
     GREETINGS = {
-
-        "hi",
-
-        "hello",
-
-        "hey",
-
-        "good morning",
-
-        "good afternoon",
-
-        "good evening"
-
+        "hi", "hello", "hey", "namaste", "नमस्ते",
+        "good morning", "good afternoon", "good evening"
     }
 
     THANKS = {
-
-        "thanks",
-
-        "thank you",
-
-        "thankyou",
-
-        "thx"
-
+        "thanks", "thank you", "thx", "धन्यवाद", "thankyou"
     }
 
-    GOODBYE = {
-
-        "bye",
-
-        "goodbye",
-
-        "see you"
-
+    ACKNOWLEDGEMENTS = {
+        "ok", "okay", "ayy", "hora", "ho ra", "ramro", "aw", "ehh",
+        "hmm", "hajur", "la", "ठीक छ", "हो र", "अँ", "हुन्छ", "राम्रो"
     }
 
-    HARMFUL = [
-
-        "make a bomb",
-
-        "kill",
-
-        "hack facebook",
-
-        "malware",
-
-        "ransomware"
-
+    BLOCKED_PATTERNS = [
+        r"ignore previous",
+        r"ignore all",
+        r"system prompt",
+        r"developer message",
+        r"jailbreak",
+        r"prompt injection",
+        r"act as",
+        r"pretend to",
+        r"give me.*code",
+        r"write.*code",
+        r"python code",
+        r"javascript code",
+        r"make.*virus",
+        r"hack",
+        r"malware",
+        r"phishing",
+        r"ransomware",
+        r"bomb",
     ]
 
+    @staticmethod
+    def is_nepali(text: str) -> bool:
+        return bool(re.search(r"[\u0900-\u097F]", text))
 
     @staticmethod
     def classify(question: str):
-
         text = question.lower().strip()
 
         if not text:
-
             return "empty"
 
         if text in Guardrails.GREETINGS:
-
             return "greeting"
 
         if text in Guardrails.THANKS:
-
             return "thanks"
 
-        if text in Guardrails.GOODBYE:
+        if text in Guardrails.ACKNOWLEDGEMENTS:
+            return "acknowledgement"
 
-            return "goodbye"
-
-        for keyword in Guardrails.HARMFUL:
-
-            if keyword in text:
-
+        for pattern in Guardrails.BLOCKED_PATTERNS:
+            if re.search(pattern, text):
                 return "blocked"
 
         return "rag"

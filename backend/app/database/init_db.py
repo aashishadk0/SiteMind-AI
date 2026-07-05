@@ -66,4 +66,17 @@ def initialize_database():
     )
     """)
 
+    # New table added
+        # Knowledge sources
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS knowledge_sources(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        base_url TEXT UNIQUE,
+        status TEXT DEFAULT 'ready',
+        total_pages INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     conn.commit()

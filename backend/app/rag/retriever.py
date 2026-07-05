@@ -1,31 +1,19 @@
-"""
-Retrieve relevant chunks from ChromaDB.
-"""
-
 from backend.app.rag.embeddings import EmbeddingService
 from backend.app.rag.vector_store import VectorStore
 
 
 class Retriever:
-    """Retrieve the most relevant chunks."""
-
     def __init__(self):
-
         self.embedding_service = EmbeddingService()
-
         self.vector_store = VectorStore()
 
-    def retrieve(
-        self,
-        question: str,
-        top_k: int = 5
-    ):
-
+    def retrieve(self, question: str, top_k: int = 5, source_id=None):
         embedding = self.embedding_service.embed(question)
 
         results = self.vector_store.search(
             embedding=embedding,
-            top_k=top_k
+            top_k=top_k,
+            source_id=source_id
         )
 
         retrieved = []
@@ -34,24 +22,15 @@ class Retriever:
         metadatas = results["metadatas"][0]
         distances = results["distances"][0]
 
-        for doc, meta, distance in zip(
-            documents,
-            metadatas,
-            distances
-        ):
-
+        for doc, meta, distance in zip(documents, metadatas, distances):
             retrieved.append({
-
                 "content": doc,
-
-                "website": meta["website"],
-
-                "title": meta["title"],
-
-                "url": meta["url"],
-
+                "source_id": meta.get("source_id"),
+                "source_name": meta.get("source_name"),
+                "website": meta.get("website"),
+                "title": meta.get("title"),
+                "url": meta.get("url"),
                 "score": 1 - distance
-
             })
 
         return retrieved

@@ -8,6 +8,7 @@ from backend.app.routers import (
     ai,
     health
 )
+from backend.app.routers import knowledge
 from pathlib import Path
 
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +56,7 @@ app.include_router(scraper.router)
 
 app.include_router(ai.router)
 
+app.include_router(knowledge.router)
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):

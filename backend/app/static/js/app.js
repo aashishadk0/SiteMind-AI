@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateAuthUI();
 
     await loadModelOptions();
+    await loadKnowledgeSources();
 
     if (getUser()) {
         await ensureActiveChat();

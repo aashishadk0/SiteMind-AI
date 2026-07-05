@@ -38,16 +38,12 @@ def chat(request: ChatRequest):
     try:
 
         return chat_service.generate_reply(
-
-            chat_id=request.chat_id,
-
-            question=request.question,
-
-            provider=request.provider,
-
-            model=request.model,
-
-        )
+    chat_id=request.chat_id,
+    question=request.question,
+    provider=request.provider,
+    model=request.model,
+    source_id=request.source_id,
+)
 
     except Exception as e:
 

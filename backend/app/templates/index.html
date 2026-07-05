@@ -71,6 +71,12 @@
               id="modelSelect"
               class="max-w-[120px] md:max-w-none bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm outline-none"
             ></select>
+            <select
+              id="sourceSelect"
+              class="max-w-[140px] md:max-w-none bg-[#2b2b2b] border border-[#3a3a3a] rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm outline-none"
+            >
+              <option value="">Source</option>
+            </select>
 
             <button
               id="openAuthBtn"
@@ -88,8 +94,33 @@
           >
             <h2 class="text-4xl md:text-5xl font-bold">SiteMind AI</h2>
             <p class="text-gray-400 mt-3 text-sm md:text-base">
-              Ask anything about the indexed knowledge base.
+              Add a website URL, index it, then ask questions from that source.
             </p>
+
+            <div class="mt-8 w-full max-w-2xl px-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input
+                  id="sourceNameInput"
+                  class="md:col-span-1 bg-[#2b2b2b] border border-[#3a3a3a] rounded-xl px-4 py-3 outline-none"
+                  placeholder="Name e.g. LICT"
+                />
+
+                <input
+                  id="sourceUrlInput"
+                  class="md:col-span-2 bg-[#2b2b2b] border border-[#3a3a3a] rounded-xl px-4 py-3 outline-none"
+                  placeholder="Website URL e.g. https://lict.edu.np"
+                />
+              </div>
+
+              <button
+                id="indexWebsiteBtn"
+                class="mt-3 w-full rounded-xl bg-green-600 hover:bg-green-700 py-3 font-semibold"
+              >
+                Index Website
+              </button>
+
+              <p id="indexStatus" class="mt-3 text-sm text-gray-400"></p>
+            </div>
           </div>
 
           <div

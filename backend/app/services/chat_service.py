@@ -20,7 +20,7 @@ class ChatService:
 
         return title or "New Chat"
 
-    def generate_reply(self, chat_id, question, provider, model):
+    def generate_reply(self, chat_id, question, provider, model, source_id=None):
         full_answer = ""
 
         for token in self.generate_reply_stream(
@@ -28,6 +28,7 @@ class ChatService:
             question,
             provider,
             model,
+            source_id
         ):
             full_answer += token
 
@@ -35,8 +36,7 @@ class ChatService:
             "answer": full_answer.strip(),
             "sources": [],
         }
-
-    def generate_reply_stream(self, chat_id, question, provider, model):
+    def generate_reply_stream(self, chat_id, question, provider, model, source_id=None):
         if not ModelManager.is_valid(provider, model):
             raise ValueError("Invalid model selected.")
 
@@ -69,9 +69,10 @@ class ChatService:
             return
 
         chunks = self.retriever.retrieve(
-            question,
-            top_k=3,
-        )
+    question,
+    top_k=3,
+    source_id=source_id
+)
 
         messages = self.prompt_builder.build(
             question,

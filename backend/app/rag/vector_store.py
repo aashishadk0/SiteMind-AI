@@ -1,16 +1,10 @@
-"""
-Vector database using ChromaDB.
-"""
-
 import chromadb
 
 from backend.app.config import CHROMA_DIR
 
 
 class VectorStore:
-
     def __init__(self):
-
         self.client = chromadb.PersistentClient(
             path=str(CHROMA_DIR)
         )
@@ -20,14 +14,12 @@ class VectorStore:
         )
 
     def add_chunks(self, chunks):
-
         ids = []
         documents = []
         embeddings = []
         metadatas = []
 
         for chunk in chunks:
-
             ids.append(str(chunk["chunk_id"]))
 
             documents.append(chunk["content"])
@@ -35,37 +27,31 @@ class VectorStore:
             embeddings.append(chunk["embedding"])
 
             metadatas.append({
-
+                "source_id": str(chunk["source_id"]),
+                "source_name": chunk["source_name"],
                 "website": chunk["website"],
-
                 "title": chunk["page_title"],
-
                 "url": chunk["url"]
-
             })
 
-        self.collection.add(
+        if documents:
+            self.collection.add(
+                ids=ids,
+                documents=documents,
+                embeddings=embeddings,
+                metadatas=metadatas
+            )
 
-            ids=ids,
+    def search(self, embedding, top_k=5, source_id=None):
+        where_filter = None
 
-            documents=documents,
-
-            embeddings=embeddings,
-
-            metadatas=metadatas
-
-        )
-
-    def search(
-        self,
-        embedding,
-        top_k=5
-    ):
+        if source_id:
+            where_filter = {
+                "source_id": str(source_id)
+            }
 
         return self.collection.query(
-
             query_embeddings=[embedding],
-
-            n_results=top_k
-
+            n_results=top_k,
+            where=where_filter
         )

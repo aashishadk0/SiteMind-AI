@@ -1,6 +1,7 @@
 let currentChatId = null;
 let selectedProvider = "ollama";
 let selectedModel = "llama3.2:latest";
+let selectedSourceId = null;
 
 const chatList = document.getElementById("chatList");
 const messagesBox = document.getElementById("messages");
@@ -254,6 +255,63 @@ async function ensureActiveChat() {
     await createNewChat();
 }
 
+
+async function loadKnowledgeSources() {
+    const sourceSelect = document.getElementById("sourceSelect");
+
+    if (!sourceSelect) return;
+
+    const sources = await apiRequest("/knowledge/sources");
+
+    sourceSelect.innerHTML = `<option value="">All Sources</option>`;
+
+    sources.forEach(source => {
+        const option = document.createElement("option");
+        option.value = source.id;
+        option.textContent = source.name;
+        sourceSelect.appendChild(option);
+    });
+
+    sourceSelect.addEventListener("change", () => {
+        selectedSourceId = sourceSelect.value ? Number(sourceSelect.value) : null;
+    });
+}
+
+async function indexWebsiteFromUI() {
+    const nameInput = document.getElementById("sourceNameInput");
+    const urlInput = document.getElementById("sourceUrlInput");
+    const status = document.getElementById("indexStatus");
+
+    const name = nameInput.value.trim();
+    const url = urlInput.value.trim();
+
+    if (!name || !url) {
+        status.textContent = "Please enter both name and URL.";
+        return;
+    }
+
+    status.textContent = "Indexing website. This may take a while...";
+
+    try {
+        const result = await apiRequest("/knowledge/index", "POST", {
+            name,
+            url,
+            max_pages: 20
+        });
+
+        status.textContent = `Indexed ${result.total_pages} pages successfully.`;
+
+        nameInput.value = "";
+        urlInput.value = "";
+
+        await loadKnowledgeSources();
+
+    } catch (error) {
+        status.textContent = `Error: ${error.message}`;
+    }
+}
+
+
 async function sendMessage() {
     const user = getUser();
 
@@ -285,6 +343,7 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 chat_id: Number(currentChatId),
+                source_id: selectedSourceId,
                 question: question,
                 provider: selectedProvider,
                 model: selectedModel
@@ -381,5 +440,11 @@ document.addEventListener("click", (event) => {
         closeMobileSidebar();
     }
 });
+
+const indexWebsiteBtn = document.getElementById("indexWebsiteBtn");
+
+if (indexWebsiteBtn) {
+    indexWebsiteBtn.addEventListener("click", indexWebsiteFromUI);
+}
 
 newChatBtn.addEventListener("click", createNewChat);

@@ -1,3 +1,7 @@
+"""
+ChromaDB vector store.
+"""
+
 import chromadb
 
 from backend.app.config import CHROMA_DIR
@@ -21,12 +25,11 @@ class VectorStore:
 
         for chunk in chunks:
             ids.append(str(chunk["chunk_id"]))
-
             documents.append(chunk["content"])
-
             embeddings.append(chunk["embedding"])
 
             metadatas.append({
+                "user_id": str(chunk["user_id"]),
                 "source_id": str(chunk["source_id"]),
                 "source_name": chunk["source_name"],
                 "website": chunk["website"],
@@ -42,12 +45,15 @@ class VectorStore:
                 metadatas=metadatas
             )
 
-    def search(self, embedding, top_k=5, source_id=None):
+    def search(self, embedding, top_k=5, user_id=None, source_id=None):
         where_filter = None
 
-        if source_id:
+        if user_id and source_id:
             where_filter = {
-                "source_id": str(source_id)
+                "$and": [
+                    {"user_id": str(user_id)},
+                    {"source_id": str(source_id)}
+                ]
             }
 
         return self.collection.query(
@@ -55,3 +61,16 @@ class VectorStore:
             n_results=top_k,
             where=where_filter
         )
+
+    def delete_source_vectors(self, user_id, source_id):
+        try:
+            self.collection.delete(
+                where={
+                    "$and": [
+                        {"user_id": str(user_id)},
+                        {"source_id": str(source_id)}
+                    ]
+                }
+            )
+        except Exception:
+            pass

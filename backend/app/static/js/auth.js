@@ -15,6 +15,8 @@ const passwordInput = document.getElementById("passwordInput");
 
 const userInfo = document.getElementById("userInfo");
 const logoutBtn = document.getElementById("logoutBtn");
+const desktopControls = document.getElementById("desktopControls");
+const mobileControls = document.getElementById("mobileControls");
 
 function openAuthModal() {
     authModal.classList.remove("hidden");
@@ -75,11 +77,23 @@ function updateAuthUI() {
     if (user) {
         openAuthBtn.classList.add("hidden");
         logoutBtn.classList.remove("hidden");
+        logoutBtn.classList.add("flex");
         userInfo.textContent = user.username;
+
+        desktopControls.classList.remove("hidden");
+        desktopControls.classList.add("md:flex");
+
+        mobileControls.classList.remove("hidden");
     } else {
         openAuthBtn.classList.remove("hidden");
         logoutBtn.classList.add("hidden");
+        logoutBtn.classList.remove("flex");
         userInfo.textContent = "Not logged in";
+
+        desktopControls.classList.add("hidden");
+        desktopControls.classList.remove("md:flex");
+
+        mobileControls.classList.add("hidden");
     }
 }
 
@@ -110,6 +124,7 @@ async function handleAuthSubmit() {
         updateAuthUI();
         closeAuthModal();
 
+        await loadKnowledgeSources(true);
         await ensureActiveChat();
 
     } catch (error) {
@@ -133,10 +148,21 @@ authSubmitBtn.addEventListener("click", handleAuthSubmit);
 logoutBtn.addEventListener("click", () => {
     clearUser();
     localStorage.removeItem("sitemind_current_chat");
+    localStorage.removeItem("sitemind_selected_source");
+
     currentChatId = null;
+    selectedSourceId = null;
+
     chatList.innerHTML = "";
     clearMessages();
     showWelcomeArea();
+
+    const indexStatus = document.getElementById("indexStatus");
+    if (indexStatus) {
+        indexStatus.textContent = "";
+    }
+
+    loadKnowledgeSources();
     updateAuthUI();
 });
 

@@ -1,3 +1,7 @@
+"""
+Knowledge indexing service.
+"""
+
 from backend.app.config import STRUCTURED_DATA_DIR
 from backend.app.database.knowledge_repository import KnowledgeRepository
 from backend.app.scraper.crawler import WebsiteCrawler
@@ -17,22 +21,32 @@ class KnowledgeService:
         self.embedding_service = EmbeddingService()
         self.vector_store = VectorStore()
 
-    def index_website(self, name, url, max_pages=20):
-        source = self.repo.create_source(
+    def index_website(self, user_id, name, url, max_pages=20):
+        source_id = self.repo.create_source(
+            user_id=user_id,
             name=name,
-            base_url=url,
-            status="indexing"
+            base_url=url
         )
 
-        source_id = source["id"]
-
         try:
+            self.repo.update_progress(
+                source_id,
+                "crawling",
+                "Crawling website pages..."
+            )
+
             crawler = WebsiteCrawler(
                 url,
                 max_pages=max_pages
             )
 
             urls = crawler.crawl()
+
+            self.repo.update_progress(
+                source_id,
+                "cleaning",
+                f"Found {len(urls)} pages. Cleaning content..."
+            )
 
             pages = []
 
@@ -42,6 +56,12 @@ class KnowledgeService:
                     pages.append(page)
                 except Exception:
                     continue
+
+            self.repo.update_progress(
+                source_id,
+                "structuring",
+                "Creating structured knowledge base..."
+            )
 
             knowledge = self.builder.build(
                 website_name=name,
@@ -53,12 +73,25 @@ class KnowledgeService:
 
             self.builder.save(
                 knowledge,
-                f"{safe_name}_{source_id}.json"
+                f"user_{user_id}_{safe_name}_{source_id}.json"
+            )
+
+            self.repo.update_progress(
+                source_id,
+                "chunking",
+                "Splitting content into searchable chunks..."
             )
 
             chunks = self.chunker.chunk_pages(
-                knowledge,
+                knowledge=knowledge,
+                user_id=user_id,
                 source_id=source_id
+            )
+
+            self.repo.update_progress(
+                source_id,
+                "embedding",
+                "Creating embeddings and storing vectors..."
             )
 
             for chunk in chunks:
@@ -68,9 +101,10 @@ class KnowledgeService:
 
             self.vector_store.add_chunks(chunks)
 
-            self.repo.update_source(
-                source_id=source_id,
-                status="ready",
+            self.repo.update_progress(
+                source_id,
+                "ready",
+                "Indexing completed successfully.",
                 total_pages=len(pages)
             )
 
@@ -83,19 +117,23 @@ class KnowledgeService:
             }
 
         except Exception as error:
-            self.repo.update_source(
-                source_id=source_id,
-                status="failed",
-                total_pages=0
+            self.repo.update_progress(
+                source_id,
+                "failed",
+                f"Indexing failed: {str(error)}"
             )
 
             raise error
 
-    def list_sources(self):
-        return self.repo.list_sources()
+    def list_sources(self, user_id):
+        return self.repo.list_sources(user_id)
 
-    def delete_source(self, source_id):
-        self.repo.delete_source(source_id)
+    def get_source(self, source_id, user_id):
+        return self.repo.get_source(source_id, user_id)
+
+    def delete_source(self, source_id, user_id):
+        self.vector_store.delete_source_vectors(user_id, source_id)
+        self.repo.delete_source(source_id, user_id)
 
         return {
             "message": "Knowledge source deleted."

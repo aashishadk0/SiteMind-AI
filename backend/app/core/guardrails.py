@@ -8,7 +8,7 @@ class Guardrails:
     }
 
     THANKS = {
-        "thanks", "thank you", "thx", "धन्यवाद", "thankyou"
+        "thanks", "thank you", "thx", "thankyou", "धन्यवाद"
     }
 
     ACKNOWLEDGEMENTS = {
@@ -29,6 +29,11 @@ class Guardrails:
         r"write.*code",
         r"python code",
         r"javascript code",
+        r"multiplication table",
+        r"cook",
+        r"cooking",
+        r"recipe",
+        r"भात पकाउन",
         r"make.*virus",
         r"hack",
         r"malware",

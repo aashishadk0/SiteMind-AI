@@ -1,6 +1,6 @@
 let currentChatId = null;
-let selectedProvider = "ollama";
-let selectedModel = "llama3.2:latest";
+let selectedProvider = "groq";
+let selectedModel = "llama-3.1-8b-instant";
 let selectedSourceId = null;
 
 const chatList = document.getElementById("chatList");
@@ -29,13 +29,13 @@ function createBubble(role, content = "") {
     if (role === "user") {
         wrapper.className = "flex justify-end mb-4";
         bubble.className = "max-w-[85%] md:max-w-[75%] rounded-2xl rounded-br-md bg-green-600 px-5 py-3 text-white leading-normal";
+        bubble.textContent = content.trim();
     } else {
         wrapper.className = "flex justify-start mb-4";
-        bubble.className =
-            "markdown-body max-w-[90%] md:max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-100 leading-relaxed";
+        bubble.className = "markdown-body max-w-[90%] md:max-w-[80%] rounded-2xl rounded-bl-md bg-[#2b2b2b] border border-[#3a3a3a] px-5 py-3 text-gray-100 leading-normal whitespace-pre-line";
+        bubble.innerHTML = marked.parse(content.trim());
     }
 
-    bubble.textContent = content.trim();
     wrapper.appendChild(bubble);
     messagesBox.appendChild(wrapper);
 
@@ -54,7 +54,7 @@ function createWaitingBubble() {
 
     bubble.innerHTML = `
         <div class="flex items-center gap-2">
-            <span>Searching knowledge base and preparing answer</span>
+            <span>Searching selected knowledge source</span>
             <span class="waiting-dots">
                 <span>.</span><span>.</span><span>.</span>
             </span>
@@ -69,14 +69,7 @@ function createWaitingBubble() {
 }
 
 function renderMessage(role, content) {
-    const bubble = createBubble(role, "");
-
-    if (role === "assistant") {
-        bubble.classList.add("markdown-body");
-        bubble.innerHTML = marked.parse(content.trim());
-    } else {
-        bubble.textContent = content.trim();
-    }
+    createBubble(role, content);
 }
 
 function clearMessages() {
@@ -88,40 +81,215 @@ function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+function syncModelControls(providerValue, modelValue) {
+    const providerDesktop = document.getElementById("providerSelect");
+    const modelDesktop = document.getElementById("modelSelect");
+    const providerMobile = document.getElementById("providerSelectMobile");
+    const modelMobile = document.getElementById("modelSelectMobile");
+
+    if (providerDesktop) providerDesktop.value = providerValue;
+    if (providerMobile) providerMobile.value = providerValue;
+
+    selectedProvider = providerValue;
+    selectedModel = modelValue;
+
+    if (modelDesktop) modelDesktop.value = modelValue;
+    if (modelMobile) modelMobile.value = modelValue;
+}
+
 async function loadModelOptions() {
-    const providerSelect = document.getElementById("providerSelect");
-    const modelSelect = document.getElementById("modelSelect");
+    const providerDesktop = document.getElementById("providerSelect");
+    const modelDesktop = document.getElementById("modelSelect");
+    const providerMobile = document.getElementById("providerSelectMobile");
+    const modelMobile = document.getElementById("modelSelectMobile");
 
     const models = await apiRequest("/ai/models");
-    providerSelect.value = "groq";
 
-    function renderModels(provider) {
-        modelSelect.innerHTML = "";
+    function fillProvider(select) {
+        if (!select) return;
+        select.innerHTML = "";
 
-        const providerData = models[provider];
+        Object.keys(models).forEach(provider => {
+            const option = document.createElement("option");
+            option.value = provider;
+            option.textContent = provider.toUpperCase();
+            select.appendChild(option);
+        });
+    }
 
-        selectedProvider = provider;
-        selectedModel = providerData.default;
+    function fillModels(provider, select) {
+        if (!select) return;
+        select.innerHTML = "";
 
-        providerData.models.forEach(model => {
+        models[provider].models.forEach(model => {
             const option = document.createElement("option");
             option.value = model.id;
             option.textContent = model.name;
-            modelSelect.appendChild(option);
+            select.appendChild(option);
         });
-
-        modelSelect.value = selectedModel;
     }
 
-    providerSelect.addEventListener("change", () => {
-        renderModels(providerSelect.value);
+    function changeProvider(provider) {
+        selectedProvider = provider;
+        selectedModel = models[provider].default;
+
+        fillModels(provider, modelDesktop);
+        fillModels(provider, modelMobile);
+
+        syncModelControls(selectedProvider, selectedModel);
+    }
+
+    fillProvider(providerDesktop);
+    fillProvider(providerMobile);
+
+    changeProvider("groq");
+
+    providerDesktop?.addEventListener("change", () => {
+        changeProvider(providerDesktop.value);
     });
 
-    modelSelect.addEventListener("change", () => {
-        selectedModel = modelSelect.value;
+    providerMobile?.addEventListener("change", () => {
+        changeProvider(providerMobile.value);
     });
 
-    renderModels(providerSelect.value);
+    modelDesktop?.addEventListener("change", () => {
+        selectedModel = modelDesktop.value;
+        syncModelControls(selectedProvider, selectedModel);
+    });
+
+    modelMobile?.addEventListener("change", () => {
+        selectedModel = modelMobile.value;
+        syncModelControls(selectedProvider, selectedModel);
+    });
+}
+
+function syncSourceControls(value) {
+    const sourceDesktop = document.getElementById("sourceSelect");
+    const sourceMobile = document.getElementById("sourceSelectMobile");
+
+    if (sourceDesktop) sourceDesktop.value = value || "";
+    if (sourceMobile) sourceMobile.value = value || "";
+
+    selectedSourceId = value ? Number(value) : null;
+
+    if (value) {
+        localStorage.setItem("sitemind_selected_source", value);
+    } else {
+        localStorage.removeItem("sitemind_selected_source");
+    }
+}
+
+async function loadKnowledgeSources(autoSelectLatest = false) {
+    const sourceDesktop = document.getElementById("sourceSelect");
+    const sourceMobile = document.getElementById("sourceSelectMobile");
+    const user = getUser();
+
+    if (!sourceDesktop || !sourceMobile) return;
+
+    sourceDesktop.innerHTML = `<option value="">Select Source</option>`;
+    sourceMobile.innerHTML = `<option value="">Select Source</option>`;
+
+    selectedSourceId = null;
+
+    if (!user) return;
+
+    const sources = await apiRequest(`/knowledge/sources/${user.id}`);
+
+    sources.forEach(source => {
+        const label = source.status === "ready"
+            ? source.name
+            : `${source.name} (${source.status})`;
+
+        const option1 = document.createElement("option");
+        option1.value = source.id;
+        option1.textContent = label;
+
+        const option2 = document.createElement("option");
+        option2.value = source.id;
+        option2.textContent = label;
+
+        sourceDesktop.appendChild(option1);
+        sourceMobile.appendChild(option2);
+    });
+
+    if (autoSelectLatest && sources.length > 0) {
+        syncSourceControls(String(sources[0].id));
+        return;
+    }
+
+    const saved = localStorage.getItem("sitemind_selected_source");
+
+    const belongsToCurrentUser = sources.some(source => String(source.id) === String(saved));
+
+    if (saved && belongsToCurrentUser) {
+        syncSourceControls(saved);
+    }
+}
+
+async function indexWebsiteFromUI() {
+    const user = getUser();
+
+    if (!user) {
+        openAuthModal();
+        return;
+    }
+
+    const nameInput = document.getElementById("sourceNameInput");
+    const urlInput = document.getElementById("sourceUrlInput");
+    const status = document.getElementById("indexStatus");
+
+    const name = nameInput.value.trim();
+    const url = urlInput.value.trim();
+
+    if (!name || !url) {
+        status.textContent = "Please enter both source name and website URL.";
+        return;
+    }
+
+    let visible = true;
+    status.textContent = "Queued for indexing...";
+
+    const steps = [
+        "Queued for indexing...",
+        "Crawling website pages...",
+        "Cleaning website content...",
+        "Creating structured knowledge base...",
+        "Splitting content into chunks...",
+        "Creating embeddings and storing vectors..."
+    ];
+
+    let stepIndex = 0;
+
+    const interval = setInterval(() => {
+        stepIndex = Math.min(stepIndex + 1, steps.length - 1);
+        visible = !visible;
+        status.style.opacity = visible ? "1" : "0.45";
+        status.textContent = steps[stepIndex];
+    }, 1500);
+
+    try {
+        const result = await apiRequest("/knowledge/index", "POST", {
+            user_id: user.id,
+            name,
+            url,
+            max_pages: 20
+        });
+
+        clearInterval(interval);
+        status.style.opacity = "1";
+        status.textContent = `Completed. Indexed ${result.total_pages} pages of ${result.name}.`;
+
+        nameInput.value = "";
+        urlInput.value = "";
+
+        await loadKnowledgeSources(true);
+        syncSourceControls(String(result.source_id));
+
+    } catch (error) {
+        clearInterval(interval);
+        status.style.opacity = "1";
+        status.textContent = `Error: ${error.message}`;
+    }
 }
 
 async function createNewChat() {
@@ -161,15 +329,6 @@ async function deleteChat(chatId) {
     }
 
     await loadChats();
-
-    const user = getUser();
-    const chats = user ? await apiRequest(`/chat/list/${user.id}`) : [];
-
-    if (!currentChatId && chats.length > 0) {
-        currentChatId = chats[0].id;
-        localStorage.setItem("sitemind_current_chat", currentChatId);
-        await loadChatHistory(currentChatId);
-    }
 }
 
 async function loadChats() {
@@ -255,63 +414,6 @@ async function ensureActiveChat() {
     await createNewChat();
 }
 
-
-async function loadKnowledgeSources() {
-    const sourceSelect = document.getElementById("sourceSelect");
-
-    if (!sourceSelect) return;
-
-    const sources = await apiRequest("/knowledge/sources");
-
-    sourceSelect.innerHTML = `<option value="">All Sources</option>`;
-
-    sources.forEach(source => {
-        const option = document.createElement("option");
-        option.value = source.id;
-        option.textContent = source.name;
-        sourceSelect.appendChild(option);
-    });
-
-    sourceSelect.addEventListener("change", () => {
-        selectedSourceId = sourceSelect.value ? Number(sourceSelect.value) : null;
-    });
-}
-
-async function indexWebsiteFromUI() {
-    const nameInput = document.getElementById("sourceNameInput");
-    const urlInput = document.getElementById("sourceUrlInput");
-    const status = document.getElementById("indexStatus");
-
-    const name = nameInput.value.trim();
-    const url = urlInput.value.trim();
-
-    if (!name || !url) {
-        status.textContent = "Please enter both name and URL.";
-        return;
-    }
-
-    status.textContent = "Indexing website. This may take a while...";
-
-    try {
-        const result = await apiRequest("/knowledge/index", "POST", {
-            name,
-            url,
-            max_pages: 20
-        });
-
-        status.textContent = `Indexed ${result.total_pages} pages successfully.`;
-
-        nameInput.value = "";
-        urlInput.value = "";
-
-        await loadKnowledgeSources();
-
-    } catch (error) {
-        status.textContent = `Error: ${error.message}`;
-    }
-}
-
-
 async function sendMessage() {
     const user = getUser();
 
@@ -343,8 +445,9 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 chat_id: Number(currentChatId),
+                user_id: user.id,
                 source_id: selectedSourceId,
-                question: question,
+                question,
                 provider: selectedProvider,
                 model: selectedModel
             })
@@ -377,7 +480,7 @@ async function sendMessage() {
 
                 token = token.replaceAll("\\n", "\n");
 
-                if (token.includes("Searching knowledge base")) {
+                if (token.includes("Searching")) {
                     assistantBubble.textContent = token;
                     continue;
                 }
@@ -388,7 +491,7 @@ async function sendMessage() {
                 }
 
                 fullText += token;
-                assistantBubble.innerHTML = marked.parse(fullText.trimStart());
+                assistantBubble.textContent = fullText.trimStart();
                 scrollToBottom();
             }
         }
@@ -399,6 +502,7 @@ async function sendMessage() {
         assistantBubble.innerHTML = marked.parse(finalText);
 
         await loadChats();
+
     } catch (error) {
         assistantBubble.textContent = `Error: ${error.message}`;
     }
@@ -407,13 +511,13 @@ async function sendMessage() {
 function openMobileSidebar() {
     sidebar.classList.add("open");
     document.body.classList.add("sidebar-open");
-    sidebarToggleBtn.textContent = "×";
+    sidebarToggleBtn.textContent = "≪";
 }
 
 function closeMobileSidebar() {
     sidebar.classList.remove("open");
     document.body.classList.remove("sidebar-open");
-    sidebarToggleBtn.textContent = "☰";
+    sidebarToggleBtn.textContent = "≫";
 }
 
 function toggleMobileSidebar() {
@@ -439,6 +543,14 @@ document.addEventListener("click", (event) => {
     ) {
         closeMobileSidebar();
     }
+});
+
+document.getElementById("sourceSelect")?.addEventListener("change", (e) => {
+    syncSourceControls(e.target.value);
+});
+
+document.getElementById("sourceSelectMobile")?.addEventListener("change", (e) => {
+    syncSourceControls(e.target.value);
 });
 
 const indexWebsiteBtn = document.getElementById("indexWebsiteBtn");
